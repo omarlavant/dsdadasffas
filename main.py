@@ -2,6 +2,8 @@ import discord
 from discord.ext import commands
 from discord.utils import get
 import youtube_dl
+import requests
+import json
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -51,7 +53,8 @@ async def ban(ctx, member: discord.Member, *, reason=None):
 async def on_message(message):
     if message.author == bot.user:
         return
-    if message.content.startswith('$merhaba'):
+    
+    elif message.content.startswith('$merhaba'):
         await message.channel.send("OOO! Paşam gelmiş, hoş gelmiş.")
 
     elif message.content.startswith('$gülegüle'):
@@ -70,10 +73,29 @@ async def on_message(message):
 
     else:
         await message.channel.send(message.content)
+@bot.command
+async def on_message(message):
+    async def hello(ctx):
+     await ctx.send('Hello! Welcome :D')
 
-@bot.command()
-async def hello(ctx):
-    await ctx.send(f'Merhaba {bot.user}! Ben bir botum!')   
+def get_global_warming_info():
+    url = "https://api.climateapi.io/globalwarming"
+    response = requests.get(url)
+    data = response.json()
+    return data
+
+
+
+# '!isınma' komutu ile küresel ısınma bilgilerini gösteren komut
+@bot.command(name='isınma', help='Küresel ısınma hakkında bilgi alın')
+async def global_warming_info(ctx):
+    data = get_global_warming_info()
+    message = f"**Küresel Isınma Bilgileri**\n\n"
+    message += f"Ortalama Sıcaklık Artışı: {data['data']['current']['temperature']}°C\n"
+    message += f"Son 50 Yılın Ortalama Sıcaklık Artışı: {data['data']['historical']['temperature']}°C\n"
+    message += f"Deniz Seviyesi Yükselmesi: {data['data']['current']['sealevel']} mm\n"
+    message += f"Son 50 Yılın Ortalama Deniz Seviyesi Yükselmesi: {data['data']['historical']['sealevel']} mm\n"
+    await ctx.send(message)
 
 
 
@@ -89,3 +111,47 @@ async def rolver(ctx, member: discord.Member, role: discord.Role):
 async def rolver_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.send('Kullanım: !hacknickname <kullanıcı_adı> <rol_adı>')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@bot.event
+async def on_ready():
+    print(f'{bot.user.name} is ready to go!')
+
+@bot.command(name='join', help='Botu ses kanalına davet eder')
+async def join(ctx):
+    channel = ctx.author.voice.channel
+    await channel.connect()
+
+@bot.command(name='leave', help='Botu ses kanalından çıkarır')
+async def leave(ctx):
+    await ctx.voice_client.disconnect()
+
+@bot.command(name='play', help='YouTube üzerinden müzik çalar')
+async def play(ctx, url):
+    ydl_opts = {
+        'format': 'bestaudio',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+    }
+
+    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+        url2 = info['formats'][0]['url']
+        voice_channel = get(ctx.guild.voice_channels, name=ctx.author.voice.channel.name)
+        voice_channel.play(discord.FFmpegPCMAudio(url2))
