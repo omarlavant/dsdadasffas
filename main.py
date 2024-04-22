@@ -1,18 +1,70 @@
 import discord
-from discord.ext import commands
-from discord.utils import get
-import youtube_dl
+import random
 import requests
-import json
+import time
+import asyncio
+from discord.ext import commands
 
+
+
+#defaults
 intents = discord.Intents.default()
-intents.messages = True
-intents.guilds = True
+intents.message_content = True
 intents.voice_states = True
+bot = commands.Bot(command_prefix='$', intents=intents)
+messages = 0
 
-bot = commands.Bot(command_prefix='!', intents=intents)
 
-#HELP!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
+
+#is our bot active?
+@bot.event
+async def on_ready():
+    print(f'We have logged in as {bot.user}')
+
+
+
+#blocking unwanted names
+@bot.event
+async def on_member_update(before, after):
+    n = after.nick
+    if n:
+        if n.lower().count('küfür') > 0:
+            last = before.nick
+            if last:
+                await after.edit(nick=last)
+            else:
+                await after.edit(nick='terbiyeli ol :D')
+
+
+#control the channel message activities
+@bot.event
+async def on_message(message):
+    global messages
+    messages += 1
+    msg = message.content
+
+    if message.author == bot.user:
+        return
+
+    # Reply for sad words
+    for word in ["sad", "offended", "angry"]:
+        if word in msg:
+            response = random.choice(["Don't worry, everything will be alright!", "I can tell a joke that will cheer you up!", "Smiling is always the best medicine!"])
+            await message.channel.send(response)
+            break
+
+    #reply for bad words            
+    for word in ["swear", "badword", "curse", "profanity"]:
+        if message.content.count(word) > 0:
+            print("A bad word was said")
+            await message.channel.purge(limit=1)
+            
+    await bot.process_commands(message)
+
+#help
 @bot.command()
 async def code(ctx):
     embed = discord.Embed(title="Help on BOT", description="Some useful commands")
@@ -23,97 +75,159 @@ async def code(ctx):
     embed.add_field(name="$quote", value="Prints inspirational quotes")
     embed.add_field(name="$offline <num>", value="Shutdown the bot or turn of some minutes")
     embed.add_field(name="$guess <num>", value="Number guessing game")
+    embed.add_field(name="$isinma <num>", value="Number guessing game")   
     await ctx.send(embed=embed)
 
-
-@bot.command(name='ban', help='Kullanıcıyı banlar')
-@commands.has_permissions(ban_members=True)
-async def ban(ctx, member: discord.Member, *, reason=None):
-    # Kullanıcı banlanacak mı diye kontrol edilir
-    if not member.bannable:
-        await ctx.send("Bu kullanıcıyı banlayamam. Belki daha yüksek bir role sahiptir.")
-        return
-
-    # Ban atılacak kullanıcının ID'si alınır
-    user_id = member.id
-
-    # Kullanıcı banlanır
-    await member.ban(reason=reason)
-
-    # Ban atılan kullanıcının ID'si ve sebep yazdırılır
-    await ctx.send(f'{member.mention} kullanıcısı banlandı. Sebep: {reason}')
-
-    # Banlanan kullanıcının ID'si ve sebep log kanalına yazdırılır (isteğe bağlı)
-    log_channel_id = 123456789012345678  # Log kanalının ID'si
-    log_channel = ctx.guild.get_channel(log_channel_id)
-    if log_channel:
-        await log_channel.send(f'{member.mention} ({user_id}) kullanıcısı banlandı. Sebep: {reason}')
-
-@bot.command
-async def on_message(message):
-    if message.author == bot.user:
-        return
-    
-    elif message.content.startswith('$merhaba'):
-        await message.channel.send("OOO! Paşam gelmiş, hoş gelmiş.")
-
-    elif message.content.startswith('$gülegüle'):
-        await message.channel.send("\\U0001f642"),
-    
-
-    elif message.content.startswith('$küresel ısınma'):
-     await message.channel.send("Dünyanın hiçbir köşesi iklim değişikliğinin yıkıcı sonuçlarından muaf değil.Artan sıcaklıklar çevresel bozulmayı, doğal afetleri, aşırı hava koşullarını, gıda ve su güvensizliğini, ekonomik bozulmayı, çatışmayı ve terörizmi körüklüyor. Deniz seviyeleri yükseliyor, Kuzey Kutbu eriyor, mercan resifleri ölüyor, okyanuslar asitleniyor ve ormanlar yanıyor. İşlerin her zamanki gibi yeterince iyi olmadığı açık. İklim değişikliğinin sonsuz maliyeti geri dönülemez boyutlara ulaşırken, şimdi cesur kolektif eylem zamanı.")
-
-    elif message.content.startswith('$küresel ısınma sonuçları'):
-        await message.channel.send("Sera gazı emisyonları Dünya'yı kapladığından güneşin ısısını hapsediyorlar. Bu da küresel ısınmaya ve iklim değişikliğine yol açıyor. Dünya artık kayıtlı tarihin herhangi bir noktasından daha hızlı ısınıyor. Zamanla artan sıcaklıklar hava düzenlerini değiştiriyor ve doğanın olağan dengesini bozuyor. Bu durum insanlar ve Dünya üzerindeki diğer tüm yaşam formları için pek çok risk oluşturmaktadır.")
-
-
-    elif message.content.startswith('$enayrıntılıbilgi'):
-        await message.channel.send("Kömür, petrol ve gaz üretiminin bir sonucu olarak her yıl atmosfere milyarlarca ton CO2 salınıyor. İnsan faaliyetleri rekor düzeyde sera gazı emisyonu üretiyor ve hiçbir yavaşlama belirtisi yok. UNEP Emisyon Açığı raporlarının on yıllık özetine göre, “işlerin olağan seyrinde” gidişatını sürdürme yolunda ilerliyoruz.")
-
-    else:
-        await message.channel.send(message.content)
-@bot.command
-async def on_message(message):
-    async def hello(ctx):
-     await ctx.send('Hello! Welcome :D')
-
-def get_global_warming_info():
-    url = "https://api.climateapi.io/globalwarming"
-    response = requests.get(url)
-    data = response.json()
-    return data
-
-
-
-# '!isınma' komutu ile küresel ısınma bilgilerini gösteren komut
-@bot.command(name='isınma', help='Küresel ısınma hakkında bilgi alın')
-async def global_warming_info(ctx):
-    data = get_global_warming_info()
-    message = f"**Küresel Isınma Bilgileri**\n\n"
-    message += f"Ortalama Sıcaklık Artışı: {data['data']['current']['temperature']}°C\n"
-    message += f"Son 50 Yılın Ortalama Sıcaklık Artışı: {data['data']['historical']['temperature']}°C\n"
-    message += f"Deniz Seviyesi Yükselmesi: {data['data']['current']['sealevel']} mm\n"
-    message += f"Son 50 Yılın Ortalama Deniz Seviyesi Yükselmesi: {data['data']['historical']['sealevel']} mm\n"
-    await ctx.send(message)
-
-
-
-
-# Rol verme komutu
+#say hi :D
 @bot.command()
-async def rolver(ctx, member: discord.Member, role: discord.Role):
-    await member.add_roles(role)
-    await ctx.send(f'{member.mention} kullanıcısına {role.name} rolü verildi!')
-
-# Hata yönetimi
-@rolver.error
-async def rolver_error(ctx, error):
-    if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send('Kullanım: !hacknickname <kullanıcı_adı> <rol_adı>')
+async def hello(ctx):
+    await ctx.send('Hello! Welcome :D')
 
 
 
+#will clean the channel message history.
+@bot.command()
+async def clean(ctx, limit=10):
+    channel = ctx.channel
+    await channel.purge(limit=limit + 1)
+    await ctx.send(f"{limit} messages deleted.")
+
+
+
+#to turn off the bot
+@bot.command()
+async def offline(ctx, num: int = None):
+    if num is None:
+        await ctx.send("Bot is going completely offline. Goodbye!")
+        await bot.change_presence(status=discord.Status.offline, activity=None)
+    else:
+        await ctx.send(f"Bot is going offline for {num} minute(s). Goodbye!")
+        await bot.change_presence(status=discord.Status.offline, activity=None)
+
+        await asyncio.sleep(num * 60)
+
+        await bot.change_presence(status=discord.Status.online, activity=discord.Game(name="KODLAND"))
+        await ctx.send("Bot is back online!")
+
+#for guess game-------------------------------------------------------------------------------------------
+async def start_guessing(ctx, num=None):
+    if num is None:
+        num = "100"
+
+    if not num.isdigit():
+        await ctx.send("Please enter a valid number.")
+        return
+
+    number_to_guess = random.randint(1, int(num))
+    await ctx.send(f"The number guessing game begins! I kept a number between 1 and {num}. Guess!")
+
+    def check(message):
+        return message.author == ctx.author and message.channel == ctx.channel and message.content.isdigit()
+
+    attempts = 0
+    while True:
+        try:
+            user_guess = await bot.wait_for('message', check=check, timeout=30)
+            user_guess = int(user_guess.content)
+            attempts += 1
+
+            if user_guess == number_to_guess:
+                await ctx.send(f"Great! You guessed right! Number: {number_to_guess}, Attempts: {attempts}")
+                break
+            elif user_guess < number_to_guess:
+                await ctx.send("Guess a larger number.")
+            else:
+                await ctx.send("Guess a smaller number.")
+
+        except asyncio.TimeoutError:
+            await ctx.send("Time's up! The game is over.")
+            break
+
+#guess what :D
+@bot.command()
+async def guess(ctx, num: str = None):
+    await start_guessing(ctx, num)
+
+# Dice roll function --------------------------------------------------------------------------------
+async def roll_dice(ctx, num=None):
+    if num is None:
+        num = 6
+
+    try:
+        num = int(num)
+    except ValueError:
+        await ctx.send("Please enter a valid number.")
+        return
+
+    result = random.randint(1, num)
+    await ctx.send(f"I rolled the dice! Returned a value between 1 and {num}: {result}")
+
+# Roll komutu
+@bot.command()
+async def roll(ctx, num: str = None):
+    await roll_dice(ctx, num)
+
+
+
+
+
+
+from bs4 import BeautifulSoup
+text = ''
+@bot.command()
+async def isinma(ctx):
+    global text
+    dict_news = {"news": []}
+    url = 'https://dilekasan.com/'
+    pages = ["kuresel-isinma-tanimi-nedenleri-ve-sonuclari"]
+    
+    for i in pages:
+        response = requests.get(url + i + "/")
+        bs = BeautifulSoup(response.text, "html.parser")
+
+        temp = bs.find_all('p')
+        for item in temp:
+            news_text = item.get_text(strip=True)
+            dict_news["news"].append(news_text)
+            
+
+    for news_item in dict_news["news"]:
+        text += news_item
+    ozet = summarization(text)
+    await ctx.send(ozet)
+
+
+from nltk.stem import WordNetLemmatizer
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import sent_tokenize, word_tokenize
+from nltk.probability import FreqDist
+from wordcloud import WordCloud
+from matplotlib import pyplot as plt
+
+#nltk.download('punkt')
+#nltk.download('stopwords')
+#nltk.download('wordnet')
+
+def summarization(text, sent_number=4):
+    sentences = sent_tokenize(text, language='turkish')
+    stop_words = set(stopwords.words('turkish'))
+    words = word_tokenize(text)
+    words = [word.lower() for word in words if word.isalpha()]
+    words = [word for word in words if word not in stop_words]
+    lemmatizer = WordNetLemmatizer()
+    words = [lemmatizer.lemmatize(word) for word in words]
+    freq_dist = FreqDist(words)
+    sentence_scores = {}    
+    for i, sentence in enumerate(sentences):
+        sentence_words = word_tokenize(sentence.lower())
+        sentence_score = sum([freq_dist[word] for word in sentence_words if word in freq_dist]) 
+        sentence_scores[i] = sentence_score 
+    sorted_scores = sorted(sentence_scores.items(), key=lambda x: x[1], reverse=True)
+    selected_sentences = sorted_scores[:sent_number]
+    selected_sentences = sorted(selected_sentences)
+    summary = ' '.join([sentences[i] for i, _ in selected_sentences])
+    return summary
 
 
 
@@ -123,35 +237,4 @@ async def rolver_error(ctx, error):
 
 
 
-
-
-
-@bot.event
-async def on_ready():
-    print(f'{bot.user.name} is ready to go!')
-
-@bot.command(name='join', help='Botu ses kanalına davet eder')
-async def join(ctx):
-    channel = ctx.author.voice.channel
-    await channel.connect()
-
-@bot.command(name='leave', help='Botu ses kanalından çıkarır')
-async def leave(ctx):
-    await ctx.voice_client.disconnect()
-
-@bot.command(name='play', help='YouTube üzerinden müzik çalar')
-async def play(ctx, url):
-    ydl_opts = {
-        'format': 'bestaudio',
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-    }
-
-    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        url2 = info['formats'][0]['url']
-        voice_channel = get(ctx.guild.voice_channels, name=ctx.author.voice.channel.name)
-        voice_channel.play(discord.FFmpegPCMAudio(url2))
+#our bot will run with this TOKEN-----------------------------------------------------------------------
